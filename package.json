@@ -1,0 +1,21 @@
+{
+  "name": "keeply-web-bot-server",
+  "packageManager": "yarn@1.22.22",
+  "version": "1.0.0",
+  "author": {
+    "name": "Sergey Tormozov",
+    "email": "sergei.tormozow@yandex.ru"
+  },
+  "license": "MIT",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^14.0.0",
+    "koa": "^2.15.3",
+    "koa-pino-logger": "^5.0.0",
+    "pino": "^10.0.0",
+    "pino-pretty": "^13.1.1"
+  }
+}
