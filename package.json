@@ -18,6 +18,7 @@
     "koa": "^2.15.3",
     "koa-pino-logger": "^5.0.0",
     "pino": "^10.0.0",
-    "pino-pretty": "^13.1.1"
+    "pino-pretty": "^13.1.1",
+    "uuid": "^13.0.0"
   }
 }

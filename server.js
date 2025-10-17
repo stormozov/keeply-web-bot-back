@@ -1,9 +1,12 @@
 import cors from '@koa/cors';
 import Router from '@koa/router';
+import fs from 'fs';
 import Koa from 'koa';
 import pinoLogger from 'koa-pino-logger';
+import path from 'path';
 import pino from 'pino';
 import pinoPretty from 'pino-pretty';
+import { v4 as uuidv4 } from 'uuid';
 
 // Создаём настоящий логгер
 const logStream = pinoPretty({
@@ -73,6 +76,26 @@ export const botCapabilities = {
 // Подключаем Koa-логгер с нашим экземпляром
 app.use(pinoLogger({ logger }));
 
+// Middleware для обработки JSON-запросов
+app.use(async (ctx, next) => {
+  if (ctx.method === 'POST' && ctx.path === '/api/messages') {
+    const body = await new Promise((resolve, reject) => {
+      let data = '';
+      ctx.req.on('data', chunk => data += chunk);
+      ctx.req.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (err) {
+          reject(err);
+        }
+      });
+      ctx.req.on('error', reject);
+    });
+    ctx.request.body = body;
+  }
+  await next();
+});
+
 // CORS
 app.use(cors({
   origin: '*',
@@ -81,7 +104,7 @@ app.use(cors({
   credentials: true
 }));
 
-// Endpoint: GET /api/capabilities
+// Endpoint: GET /api/capabilities — получение возможностей бота
 router.get('/api/capabilities',
   async (ctx) => {
     ctx.body = botCapabilities;
@@ -89,10 +112,68 @@ router.get('/api/capabilities',
   }
 );
 
-// Endpoint: GET /api/test
+// Endpoint: GET /api/test — тестовый эндпоинт
 router.get('/api/test',
   async (ctx) => {
     ctx.body = { message: 'Hello Test' };
+    ctx.status = 200;
+  }
+);
+
+// Endpoint: GET /api/messages — получение всех сообщений
+router.get('/api/messages',
+  async (ctx) => {
+    const messagesFilePath = path.join(process.cwd(), 'data/messages.json');
+    let messages = [];
+    try {
+      const data = fs.readFileSync(messagesFilePath, 'utf8');
+      messages = JSON.parse(data);
+    } catch (err) {
+      // Если файл не существует, возвращаем пустой массив
+      logger.info('messages.json not found, returning empty array');
+    }
+    ctx.body = messages;
+    ctx.status = 200;
+  }
+);
+
+// Endpoint: POST /api/messages — отправка нового сообщения
+router.post('/api/messages',
+  async (ctx) => {
+    const { message } = ctx.request.body;
+    if (!message) {
+      ctx.status = 400;
+      ctx.body = { error: 'Message is required' };
+      return;
+    }
+    logger.info(`Received message: ${message}`);
+
+    // Путь к файлу messages.json
+    const messagesFilePath = path.join(process.cwd(), 'data/messages.json');
+
+    // Читаем существующие сообщения или создаём пустой массив
+    let messages = [];
+    try {
+      const data = fs.readFileSync(messagesFilePath, 'utf8');
+      messages = JSON.parse(data);
+    } catch (err) {
+      // Если файл не существует, messages останется пустым массивом
+      logger.info('messages.json not found, creating new file');
+    }
+
+    // Добавляем новое сообщение с timestamp
+    const newMessage = {
+      id: uuidv4(),
+      message,
+      timestamp: new Date().toISOString(),
+    };
+    messages.push(newMessage);
+
+    // Записываем обратно в файл
+    fs.writeFileSync(messagesFilePath, JSON.stringify(messages, null, 2));
+
+    // Возвращаем все сообщения
+    ctx.body = messages;
     ctx.status = 200;
   }
 );
