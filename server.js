@@ -3,9 +3,12 @@ import Router from '@koa/router';
 import fs from 'fs';
 import Koa from 'koa';
 import pinoLogger from 'koa-pino-logger';
+import multer from 'multer';
 import path from 'path';
 import pino from 'pino';
 import pinoPretty from 'pino-pretty';
+import mount from 'koa-mount';
+import serve from 'koa-static';
 import { v4 as uuidv4 } from 'uuid';
 
 // Создаём настоящий логгер
@@ -33,11 +36,11 @@ export const botCapabilities = {
       tooltip: '',
     },
     sendAttachments: {
-      availableState: 'false',
-      limit: 1,
+      availableState: 'true',
+      limit: 9,
       types: ['image', 'video', 'audio'],
-      hasTooltip: true,
-      tooltip: BOT_FUNCTION_NOT_AVAILABLE,
+      hasTooltip: false,
+      tooltip: '',
     },
   },
 
@@ -73,25 +76,46 @@ export const botCapabilities = {
   },
 };
 
+// Настройка multer для загрузки файлов
+const storage = multer.diskStorage({
+  destination: path.join(process.cwd(), 'data/uploads/'),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const filename = uuidv4() + ext;
+    cb(null, filename);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'audio/mpeg', 'audio/wav'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'), false);
+    }
+  },
+});
+
 // Подключаем Koa-логгер с нашим экземпляром
 app.use(pinoLogger({ logger }));
 
-// Middleware для обработки JSON-запросов
+// Middleware для обработки multipart/form-data
 app.use(async (ctx, next) => {
   if (ctx.method === 'POST' && ctx.path === '/api/messages') {
-    const body = await new Promise((resolve, reject) => {
-      let data = '';
-      ctx.req.on('data', chunk => data += chunk);
-      ctx.req.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch (err) {
+    await new Promise((resolve, reject) => {
+      upload.array('files', 1)(ctx.req, ctx.res, (err) => {
+        if (err) {
           reject(err);
+        } else {
+          ctx.request.files = ctx.req.files;
+          ctx.request.body = ctx.req.body;
+          resolve();
         }
       });
-      ctx.req.on('error', reject);
     });
-    ctx.request.body = body;
   }
   await next();
 });
@@ -161,10 +185,23 @@ router.post('/api/messages',
       logger.info('messages.json not found, creating new file');
     }
 
-    // Добавляем новое сообщение с timestamp
+    // Обработка файлов
+    let files = [];
+    if (ctx.request.files && ctx.request.files.length > 0) {
+      files = ctx.request.files.map(file => ({
+        filename: file.filename,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        url: `/uploads/${file.filename}`,
+      }));
+    }
+
+    // Добавляем новое сообщение с timestamp и файлами
     const newMessage = {
       id: uuidv4(),
       message,
+      files,
       timestamp: new Date().toISOString(),
     };
     messages.push(newMessage);
@@ -177,6 +214,32 @@ router.post('/api/messages',
     ctx.status = 200;
   }
 );
+
+// Статические файлы для uploads
+app.use(mount('/uploads', serve(path.join(process.cwd(), 'data/uploads'))));
+
+// Статические файлы для фронтенда
+app.use(serve(path.join(process.cwd(), '../keeply-web-bot/public/')));
+
+// Middleware для обработки JSON-запросов для других эндпоинтов
+app.use(async (ctx, next) => {
+  if (ctx.method === 'POST' && ctx.path !== '/api/messages') {
+    const body = await new Promise((resolve, reject) => {
+      let data = '';
+      ctx.req.on('data', chunk => data += chunk);
+      ctx.req.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (err) {
+          reject(err);
+        }
+      });
+      ctx.req.on('error', reject);
+    });
+    ctx.request.body = body;
+  }
+  await next();
+});
 
 // Маршрутизация
 app.use(router.routes());
