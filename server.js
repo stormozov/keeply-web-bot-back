@@ -165,12 +165,13 @@ router.get('/api/messages',
 router.post('/api/messages',
   async (ctx) => {
     const { message } = ctx.request.body;
-    if (!message) {
+    const hasFiles = ctx.request.files && ctx.request.files.length > 0;
+    if (!message && !hasFiles) {
       ctx.status = 400;
-      ctx.body = { error: 'Message is required' };
+      ctx.body = { error: 'Message or files are required' };
       return;
     }
-    logger.info(`Received message: ${message}`);
+    logger.info(`Received message: ${message || 'No text, files only'}`);
 
     // Путь к файлу messages.json
     const messagesFilePath = path.join(process.cwd(), 'data/messages.json');
@@ -200,7 +201,7 @@ router.post('/api/messages',
     // Добавляем новое сообщение с timestamp и файлами
     const newMessage = {
       id: uuidv4(),
-      message,
+      message: message || '',
       files,
       timestamp: new Date().toISOString(),
     };
