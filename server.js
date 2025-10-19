@@ -38,7 +38,7 @@ export const botCapabilities = {
     sendAttachments: {
       availableState: 'true',
       limit: 9,
-      types: ['image', 'video', 'audio'],
+      types: ['image/*', 'video/*', 'audio/*'],
       hasTooltip: false,
       tooltip: '',
     },
