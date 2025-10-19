@@ -105,8 +105,9 @@ app.use(pinoLogger({ logger }));
 // Middleware для обработки multipart/form-data
 app.use(async (ctx, next) => {
   if (ctx.method === 'POST' && ctx.path === '/api/messages') {
+    const limit = botCapabilities.messaging.sendAttachments.limit;
     await new Promise((resolve, reject) => {
-      upload.array('files', 1)(ctx.req, ctx.res, (err) => {
+      upload.array('files', limit)(ctx.req, ctx.res, (err) => {
         if (err) {
           reject(err);
         } else {
