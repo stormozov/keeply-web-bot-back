@@ -145,7 +145,7 @@ router.get('/api/test',
   }
 );
 
-// Endpoint: GET /api/messages — получение всех сообщений
+// Endpoint: GET /api/messages — получение сообщений с пагинацией
 router.get('/api/messages',
   async (ctx) => {
     const messagesFilePath = path.join(process.cwd(), 'data/messages.json');
@@ -157,7 +157,21 @@ router.get('/api/messages',
       // Если файл не существует, возвращаем пустой массив
       logger.info('messages.json not found, returning empty array');
     }
-    ctx.body = messages;
+
+    // Параметры пагинации
+    const offset = parseInt(ctx.query.offset) || 0;
+    const limit = parseInt(ctx.query.limit) || 10;
+
+    // Сортируем сообщения по timestamp (новые в конце)
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // Берем последние сообщения с учетом offset и limit
+    const totalMessages = messages.length;
+    const startIndex = Math.max(0, totalMessages - offset - limit);
+    const endIndex = totalMessages - offset;
+    const paginatedMessages = messages.slice(startIndex, endIndex);
+
+    ctx.body = paginatedMessages;
     ctx.status = 200;
   }
 );
