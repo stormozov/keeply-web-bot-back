@@ -117,6 +117,42 @@ app.use(async (ctx, next) => {
         }
       });
     });
+
+    // Обработка файлов: создание папок и перемещение
+    if (ctx.request.files && ctx.request.files.length > 0) {
+      const messageId = uuidv4();
+      const messageDir = path.join(process.cwd(), 'data/uploads', messageId);
+
+      // Группируем файлы по типам
+      const images = ctx.request.files.filter((file) => file.mimetype.startsWith('image/'));
+      const videos = ctx.request.files.filter((file) => file.mimetype.startsWith('video/'));
+      const audios = ctx.request.files.filter((file) => file.mimetype.startsWith('audio/'));
+
+      // Создаем папку для сообщения
+      fs.mkdirSync(messageDir, { recursive: true });
+
+      // Функция для перемещения файлов в подпапку
+      const moveFilesToSubdir = (files, subdirName) => {
+        if (files.length > 0) {
+          const subdir = path.join(messageDir, subdirName);
+          fs.mkdirSync(subdir, { recursive: true });
+
+          files.forEach((file) => {
+            const newPath = path.join(subdir, file.filename);
+            fs.renameSync(file.path, newPath);
+            file.filename = path.join(messageId, subdirName, file.filename).replace(/\\/g, '/');
+          });
+        }
+      };
+
+      // Перемещаем файлы в соответствующие подпапки
+      moveFilesToSubdir(images, 'images');
+      moveFilesToSubdir(videos, 'videos');
+      moveFilesToSubdir(audios, 'audios');
+
+      // Добавляем id сообщения в body
+      ctx.request.body.id = messageId;
+    }
   }
   await next();
 });
@@ -215,7 +251,7 @@ router.post('/api/messages',
 
     // Добавляем новое сообщение с timestamp и файлами
     const newMessage = {
-      id: uuidv4(),
+      id: ctx.request.body.id || uuidv4(),
       message: message || '',
       files,
       timestamp: new Date().toISOString(),
