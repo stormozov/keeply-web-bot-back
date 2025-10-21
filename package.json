@@ -23,7 +23,7 @@
     "uuid": "^13.0.0"
   },
   "dependencies": {
-    "koa-static": "^5.0.0",
-    "multer": "^2.0.2"
+    "koa-body": "^6.0.1",
+    "koa-static": "^5.0.0"
   }
 }

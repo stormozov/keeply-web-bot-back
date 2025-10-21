@@ -19,3 +19,6 @@ node_modules
 # Use message storage file
 data/messages.json
 data/uploads/*
+
+# Environment file
+environment.js
