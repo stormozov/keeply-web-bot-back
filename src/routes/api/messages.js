@@ -12,6 +12,32 @@ import { logger } from '../../utils/logger.js';
 const router = new Router();
 const API_PATH = '/api/messages';
 
+/**
+ * Обработчик GET-запроса для получения списка сообщений с поддержкой пагинации
+ * 
+ * @param {Object} ctx - Контекст запроса Koa.js
+ * @param {Object} ctx.query - Параметры запроса
+ * @param {string|number} [ctx.query.offset=0] - Смещение для пагинации
+ * @param {string|number} [ctx.query.limit=10] - Максимальное количество
+ * возвращаемых сообщений
+ * 
+ * @description
+ * 1. Читает все сообщения из хранилища
+ * 2. Сортирует их по времени создания (от старых к новым)
+ * 3. Реализует пагинацию:
+ *    - Рассчитывает начальный и конечный индексы на основе offset и limit
+ *    - Возвращает только указанную порцию сообщений (от новых к старым)
+ * 
+ * @example
+ * // Получить первые 5 сообщений
+ * GET /api/messages?offset=0&limit=5
+ * 
+ * // Получить следующие 5 сообщений (с 6 по 10)
+ * GET /api/messages?offset=5&limit=5
+ * 
+ * @see readMessages - Функция чтения сообщений из файла
+ * @see API_PATH - Константа пути API (определяется отдельно)
+ */
 router.get(API_PATH, async (ctx) => {
   const messages = readMessages();
   messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -20,7 +46,7 @@ router.get(API_PATH, async (ctx) => {
   const limit = parseInt(ctx.query.limit) || 10;
   const total = messages.length;
   const start = Math.max(0, total - offset - limit);
-  const end = total - offset;
+  const end = Math.max(0, total - offset);
 
   ctx.body = messages.slice(start, end);
 });
@@ -28,12 +54,11 @@ router.get(API_PATH, async (ctx) => {
 /**
  * Асинхронный обработчик запроса на отправку сообщения с файлами
  * 
- * @async
- * @function
  * @param {Object} ctx - Объект контекста запроса (Koa.js)
  * @param {Object} ctx.request.body - Данные тела запроса
  * @param {string} [ctx.request.body.message] - Текстовое сообщение (опционально)
- * @param {Array<File>} [ctx.request.body.files] - Массив загруженных файлов (опционально)
+ * @param {Array<File>} [ctx.request.body.files] - Массив загруженных файлов
+ * (опционально)
  * 
  * @description
  * 1. Проверяет наличие текстового сообщения или файлов
@@ -101,9 +126,9 @@ router.post(API_PATH, async (ctx) => {
     timestamp: new Date().toISOString(),
   };
 
-  // Обновленный список всех сообщений
-  const allMessages = addMessage(newMessage);
-  ctx.body = allMessages;
+  addMessage(newMessage);
+
+  ctx.body = [newMessage];
 });
 
 export default router;
