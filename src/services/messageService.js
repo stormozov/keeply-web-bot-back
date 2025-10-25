@@ -88,10 +88,27 @@ export const addMessage = (newMessage) => {
 };
 
 /**
+ * Вспомогательная функция для удаления директории сообщения
+ * 
+ * @param {string} messageId - Уникальный идентификатор сообщения
+ */
+const deleteMessageUploads = (messageId) => {
+  const messageDir = path.join(UPLOADS_DIR, messageId);
+  if (!fs.existsSync(messageDir)) return;
+
+  try {
+    fs.rmSync(messageDir, { recursive: true, force: true });
+    logger.info(`Deleted uploads directory for message ${messageId}`);
+  } catch (err) {
+    logger.error(`Failed to delete uploads directory for message ${messageId}: ${err}`);
+  }
+}
+
+/**
  * Удаление сообщения из хранилища
  *
  * @param {string} id - Уникальный идентификатор сообщения для удаления
- * @returns {boolean} 
+ * @returns {boolean}
  * - true если сообщение было найдено и удалено
  * - false если не найдено
  *
@@ -119,22 +136,51 @@ export const deleteMessage = (id) => {
   const index = messages.findIndex((msg) => msg.id === id);
   if (index === -1) return false;
 
-  const message = messages[index];
-
-  // Удаляем папку с файлами, если они есть
-  if (message.files && message.files.length > 0) {
-    const messageDir = path.join(UPLOADS_DIR, id);
-    try {
-      if (!fs.existsSync(messageDir)) return;
-      fs.rmSync(messageDir, { recursive: true, force: true });
-      logger.info(`Deleted uploads directory for message ${id}`);
-    } catch (err) {
-      logger.error(`Failed to delete uploads directory for message ${id}: ${err}`);
-      // Не прерываем удаление сообщения из-за ошибки удаления файлов
-    }
-  }
+  if (messages[index].files?.length > 0) deleteMessageUploads(id);
 
   messages.splice(index, 1);
   writeMessages(messages);
   return true;
+};
+
+/**
+ * Очистка всех сообщений и связанных файлов
+ *
+ * @returns {boolean}
+ * - true если очистка прошла успешно
+ * - false если произошла ошибка
+ *
+ * @description
+ * 1. Читает все сообщения из файла
+ * 2. Для каждого сообщения удаляет папку с файлами, если они есть
+ * 3. Очищает весь массив сообщений
+ * 4. Сохраняет пустой массив в файл
+ * 5. Возвращает результат операции
+ *
+ * @example
+ * const success = clearAllMessages();
+ * if (success) {
+ *   console.log('Все сообщения очищены');
+ * } else {
+ *   console.log('Ошибка при очистке сообщений');
+ * }
+ *
+ * @see {@link readMessages} - Для чтения сообщений
+ * @see {@link writeMessages} - Для сохранения сообщений
+ */
+export const clearAllMessages = () => {
+  try {
+    const messages = readMessages();
+
+    for (const message of messages) {
+      if (message.files?.length) deleteMessageUploads(message.id);
+    }
+
+    writeMessages([]);
+    logger.info('All messages cleared successfully');
+    return true;
+  } catch (err) {
+    logger.error(`Failed to clear all messages: ${err}`);
+    return false;
+  }
 };

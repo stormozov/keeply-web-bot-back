@@ -6,7 +6,7 @@ import Router from '@koa/router';
 import { v4 as uuidv4 } from 'uuid';
 import { MAX_FILE_SIZE } from '../../configs/constants.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
-import { addMessage, deleteMessage, readMessages } from '../../services/messageService.js';
+import { addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
 import { logger } from '../../utils/logger.js';
 
 const router = new Router();
@@ -168,6 +168,41 @@ router.delete(`${API_PATH}/:id`, async (ctx) => {
     ctx.status = 404;
     ctx.body = { error: 'Сообщение не найдено' };
     logger.warn(`Message with ID ${id} not found`);
+  }
+});
+
+/**
+ * Асинхронный обработчик запроса на очистку всех сообщений
+ *
+ * @param {Object} ctx - Объект контекста запроса (Koa.js)
+ *
+ * @description
+ * 1. Вызывает функцию очистки всех сообщений и их вложений
+ * 2. Если очистка прошла успешно, возвращает статус 200
+ * 3. Если произошла ошибка, возвращает статус 500
+ * 4. Логирует результат операции
+ *
+ * @example
+ * DELETE /api/messages
+ * // Очищает все сообщения и файлы
+ *
+ * @throws {500} Если произошла ошибка при очистке
+ *
+ * @see {@link clearAllMessages} - Функция очистки всех сообщений из хранилища
+ */
+router.delete(API_PATH, async (ctx) => {
+  logger.info('Attempting to clear all messages');
+
+  const success = clearAllMessages();
+
+  if (success) {
+    ctx.status = 200;
+    ctx.body = { message: 'Все сообщения успешно очищены' };
+    logger.info('All messages cleared successfully');
+  } else {
+    ctx.status = 500;
+    ctx.body = { error: 'Ошибка при очистке сообщений' };
+    logger.error('Failed to clear all messages');
   }
 });
 

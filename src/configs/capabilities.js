@@ -73,9 +73,9 @@ export const capabilities = {
       tooltip: BOT_FUNCTION_NOT_AVAILABLE,
     },
     buttonSettings: {
-      availableState: 'false',
-      hasTooltip: true,
-      tooltip: BOT_FUNCTION_NOT_AVAILABLE,
+      availableState: 'true',
+      hasTooltip: false,
+      tooltip: '',
     },
   },
 };
