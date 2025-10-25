@@ -6,7 +6,7 @@ import Router from '@koa/router';
 import { v4 as uuidv4 } from 'uuid';
 import { MAX_FILE_SIZE } from '../../configs/constants.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
-import { addMessage, readMessages } from '../../services/messageService.js';
+import { addMessage, deleteMessage, readMessages } from '../../services/messageService.js';
 import { logger } from '../../utils/logger.js';
 
 const router = new Router();
@@ -129,6 +129,46 @@ router.post(API_PATH, async (ctx) => {
   addMessage(newMessage);
 
   ctx.body = [newMessage];
+});
+
+/**
+ * Асинхронный обработчик запроса на удаление сообщения по его ID
+ *
+ * @param {Object} ctx - Объект контекста запроса (Koa.js)
+ * @param {Object} ctx.params - Параметры маршрута
+ * @param {string} ctx.params.id - ID сообщения для удаления
+ *
+ * @description
+ * 1. Извлекает ID сообщения из параметров маршрута
+ * 2. Вызывает функцию удаления сообщения
+ * 3. Если сообщение найдено и удалено, возвращает статус 200
+ * 4. Если сообщение не найдено, возвращает статус 404
+ * 5. Логирует результат операции
+ *
+ * @example
+ * DELETE /api/messages/123
+ * // Удаляет сообщение с ID 123
+ *
+ * @throws {404} Если сообщение с указанным ID не найдено
+ *
+ * @see {@link deleteMessage} - Функция удаления сообщения из хранилища
+ */
+router.delete(`${API_PATH}/:id`, async (ctx) => {
+  const { id } = ctx.params;
+
+  logger.info(`Attempting to delete message with ID: ${id}`);
+
+  const success = deleteMessage(id);
+
+  if (success) {
+    ctx.status = 200;
+    ctx.body = { message: 'Сообщение успешно удалено' };
+    logger.info(`Message with ID ${id} deleted successfully`);
+  } else {
+    ctx.status = 404;
+    ctx.body = { error: 'Сообщение не найдено' };
+    logger.warn(`Message with ID ${id} not found`);
+  }
 });
 
 export default router;

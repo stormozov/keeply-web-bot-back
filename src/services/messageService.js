@@ -3,8 +3,9 @@
 // =============================================================================
 
 import fs from 'fs';
+import path from 'path';
 import { logger } from '../utils/logger.js';
-import { MESSAGES_FILE } from '../utils/paths.js';
+import { MESSAGES_FILE, UPLOADS_DIR } from '../utils/paths.js';
 
 /**
  * Синхронное чтение списка сообщений из файла JSON
@@ -60,14 +61,14 @@ export const writeMessages = (messages) => {
 
 /**
  * Добавление нового сообщения в хранилище
- * 
+ *
  * @param {Object} newMessage - Объект сообщения для добавления
  * @param {string} newMessage.id - Уникальный идентификатор сообщения
  * @param {string} newMessage.text - Текстовое содержимое сообщения
  * @param {Date} newMessage.timestamp - Временная метка создания
- * 
+ *
  * @returns {Array<Object>} Обновленный список сообщений
- * 
+ *
  * @example
  * const newMsg = {
  *   id: '123',
@@ -75,7 +76,7 @@ export const writeMessages = (messages) => {
  *   timestamp: new Date().toISOString()
  * };
  * const allMessages = addMessage(newMsg);
- * 
+ *
  * @see {@link readMessages} - Для получения текущего списка
  * @see {@link writeMessages} - Для непосредственного сохранения
  */
@@ -86,3 +87,54 @@ export const addMessage = (newMessage) => {
   return messages;
 };
 
+/**
+ * Удаление сообщения из хранилища
+ *
+ * @param {string} id - Уникальный идентификатор сообщения для удаления
+ * @returns {boolean} 
+ * - true если сообщение было найдено и удалено
+ * - false если не найдено
+ *
+ * @description
+ * 1. Читает все сообщения из файла
+ * 2. Находит сообщение по ID
+ * 3. Если сообщение найдено, удаляет его из массива
+ * 4. Если у сообщения есть файлы, удаляет папку uploads/{id}
+ * 5. Сохраняет обновленный массив в файл
+ * 6. Возвращает результат операции
+ *
+ * @example
+ * const success = deleteMessage('123');
+ * if (success) {
+ *   console.log('Сообщение удалено');
+ * } else {
+ *   console.log('Сообщение не найдено');
+ * }
+ *
+ * @see {@link readMessages} - Для чтения сообщений
+ * @see {@link writeMessages} - Для сохранения сообщений
+ */
+export const deleteMessage = (id) => {
+  const messages = readMessages();
+  const index = messages.findIndex((msg) => msg.id === id);
+  if (index === -1) return false;
+
+  const message = messages[index];
+
+  // Удаляем папку с файлами, если они есть
+  if (message.files && message.files.length > 0) {
+    const messageDir = path.join(UPLOADS_DIR, id);
+    try {
+      if (!fs.existsSync(messageDir)) return;
+      fs.rmSync(messageDir, { recursive: true, force: true });
+      logger.info(`Deleted uploads directory for message ${id}`);
+    } catch (err) {
+      logger.error(`Failed to delete uploads directory for message ${id}: ${err}`);
+      // Не прерываем удаление сообщения из-за ошибки удаления файлов
+    }
+  }
+
+  messages.splice(index, 1);
+  writeMessages(messages);
+  return true;
+};
