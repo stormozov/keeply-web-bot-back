@@ -3,11 +3,15 @@
 // =============================================================================
 
 import Router from '@koa/router';
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { MAX_FILE_SIZE } from '../../configs/constants.js';
+import { MIME_TO_EXT } from '../../configs/fileTypes.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
 import { addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
 import { logger } from '../../utils/logger.js';
+import { UPLOADS_DIR } from '../../utils/paths.js';
 
 const router = new Router();
 const API_PATH = '/api/messages';
@@ -204,6 +208,79 @@ router.delete(API_PATH, async (ctx) => {
     ctx.body = { error: 'Ошибка при очистке сообщений' };
     logger.error('Failed to clear all messages');
   }
+});
+
+/**
+ * Асинхронный обработчик запроса на получение файла по его пути
+ *
+ * @param {Object} ctx - Контекст запроса Koa.js
+ * @param {Object} ctx.params - Параметры маршрута
+ * @param {string} ctx.params.messageId - ID сообщения
+ * @param {string} ctx.params.subdir - Поддиректория (images, videos, etc.)
+ * @param {string} ctx.params.filename - Имя файла
+ *
+ * @description
+ * 1. Валидирует параметры пути для предотвращения directory traversal
+ * 2. Проверяет существование файла
+ * 3. Устанавливает безопасные заголовки для предотвращения выполнения скриптов
+ * 4. Отправляет файл клиенту
+ *
+ * @example
+ * GET /api/uploads/123e4567-e89b-12d3-a456-426614174000/images/abc123.jpg
+ *
+ * @throws {400} Если параметры пути недействительны
+ * @throws {404} Если файл не найден
+ *
+ * @see {@link UPLOADS_DIR} - Директория хранения файлов
+ */
+router.get('/uploads/:messageId/:subdir/:filename', async (ctx) => {
+  const { messageId, subdir, filename } = ctx.params;
+
+  // Валидация параметров для предотвращения directory traversal
+  const validMessageId = /^[a-f0-9\-]{36}$/.test(messageId);
+  const validSubdir = /^[a-z]+$/.test(subdir);
+  const validFilename = /^[a-f0-9\-]+\.[a-z0-9]+$/.test(filename);
+
+  if (!validMessageId || !validSubdir || !validFilename) {
+    ctx.status = 400;
+    ctx.body = { error: 'Недействительные параметры запроса' };
+    logger.warn(`Invalid upload request parameters: ${messageId}/${subdir}/${filename}`);
+    return;
+  }
+
+  // Формируем безопасный путь к файлу
+  const filePath = path.join(UPLOADS_DIR, messageId, subdir, filename);
+
+  // Проверяем существование файла
+  try {
+    await fs.promises.access(filePath, fs.constants.F_OK);
+  } catch (err) {
+    ctx.status = 404;
+    ctx.body = { error: 'Файл не найден' };
+    logger.warn(`File not found: ${filePath}`);
+    return;
+  }
+
+  // Получаем информацию о файле
+  const stat = await fs.promises.stat(filePath);
+
+  // Определяем MIME-тип по расширению файла
+  const ext = path.extname(filename).toLowerCase();
+  const mimeType = Object
+    .keys(MIME_TO_EXT)
+    .find(key => MIME_TO_EXT[key] === ext) || 'application/octet-stream';
+
+  // Устанавливаем безопасные заголовки
+  ctx.set('Content-Type', mimeType);
+  ctx.set('Content-Length', stat.size);
+  ctx.set('Content-Disposition', `inline; filename="${filename}"`); // inline для отображения в браузере
+  ctx.set('X-Content-Type-Options', 'nosniff'); // Предотвращает MIME sniffing
+  ctx.set('Cache-Control', 'private, max-age=3600'); // Кеширование на 1 час
+
+  // Отправляем файл
+  ctx.body = fs.createReadStream(filePath);
+
+  logger.info(`Served file: ${filePath}`);
 });
 
 export default router;
