@@ -5,6 +5,7 @@
 import Koa from 'koa';
 import {
   corsMiddleware,
+  errorHandlerMiddleware,
   fileValidationMiddleware,
   koaBodyMiddleware,
   loggerMiddleware
@@ -12,6 +13,9 @@ import {
 import apiRoutes from './routes/api/index.js';
 
 const app = new Koa();
+
+// Глобальный обработчик ошибок
+app.use(errorHandlerMiddleware);
 
 // Middleware
 app.use(loggerMiddleware);

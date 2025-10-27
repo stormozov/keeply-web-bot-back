@@ -43,16 +43,22 @@ const API_PATH = '/api/messages';
  * @see API_PATH - Константа пути API (определяется отдельно)
  */
 router.get(API_PATH, async (ctx) => {
-  const messages = readMessages();
-  messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  try {
+    const messages = readMessages();
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  const offset = parseInt(ctx.query.offset) || 0;
-  const limit = parseInt(ctx.query.limit) || 10;
-  const total = messages.length;
-  const start = Math.max(0, total - offset - limit);
-  const end = Math.max(0, total - offset);
+    const offset = parseInt(ctx.query.offset) || 0;
+    const limit = parseInt(ctx.query.limit) || 10;
+    const total = messages.length;
+    const start = Math.max(0, total - offset - limit);
+    const end = Math.max(0, total - offset);
 
-  ctx.body = messages.slice(start, end);
+    ctx.body = { success: true, data: messages.slice(start, end) };
+  } catch (error) {
+    logger.error('Error fetching messages:', error);
+    ctx.status = 500;
+    ctx.body = { success: false, error: 'Ошибка при получении сообщений' };
+  }
 });
 
 /**
@@ -103,7 +109,7 @@ router.post(API_PATH, async (ctx) => {
   // Проверка обязательных параметров
   if (!message && uploadedFiles.length === 0) {
     ctx.status = 400;
-    ctx.body = { error: 'Отсутствуют текст или файлы' };
+    ctx.body = { success: false, error: 'Отсутствуют текст или файлы' };
     return;
   }
 
@@ -112,6 +118,7 @@ router.post(API_PATH, async (ctx) => {
     if (file.size > MAX_FILE_SIZE) {
       ctx.status = 413; // Payload Too Large
       ctx.body = {
+        success: false,
         error: `Файл "${file.originalFilename || file.name}" превышает допустимый размер (максимум 10 МБ)`,
       };
 
@@ -132,7 +139,7 @@ router.post(API_PATH, async (ctx) => {
 
   addMessage(newMessage);
 
-  ctx.body = [newMessage];
+  ctx.body = { success: true, data: [newMessage] };
 });
 
 /**
@@ -166,11 +173,11 @@ router.delete(`${API_PATH}/:id`, async (ctx) => {
 
   if (success) {
     ctx.status = 200;
-    ctx.body = { message: 'Сообщение успешно удалено' };
+    ctx.body = { success: true, message: 'Сообщение успешно удалено' };
     logger.info(`Message with ID ${id} deleted successfully`);
   } else {
     ctx.status = 404;
-    ctx.body = { error: 'Сообщение не найдено' };
+    ctx.body = { success: false, error: 'Сообщение не найдено' };
     logger.warn(`Message with ID ${id} not found`);
   }
 });
@@ -201,11 +208,11 @@ router.delete(API_PATH, async (ctx) => {
 
   if (success) {
     ctx.status = 200;
-    ctx.body = { message: 'Все сообщения успешно очищены' };
+    ctx.body = { success: true, message: 'Все сообщения успешно очищены' };
     logger.info('All messages cleared successfully');
   } else {
     ctx.status = 500;
-    ctx.body = { error: 'Ошибка при очистке сообщений' };
+    ctx.body = { success: false, error: 'Ошибка при очистке сообщений' };
     logger.error('Failed to clear all messages');
   }
 });
@@ -243,7 +250,7 @@ router.get('/uploads/:messageId/:subdir/:filename', async (ctx) => {
 
   if (!validMessageId || !validSubdir || !validFilename) {
     ctx.status = 400;
-    ctx.body = { error: 'Недействительные параметры запроса' };
+    ctx.body = { success: false, error: 'Недействительные параметры запроса' };
     logger.warn(`Invalid upload request parameters: ${messageId}/${subdir}/${filename}`);
     return;
   }
@@ -256,7 +263,7 @@ router.get('/uploads/:messageId/:subdir/:filename', async (ctx) => {
     await fs.promises.access(filePath, fs.constants.F_OK);
   } catch (err) {
     ctx.status = 404;
-    ctx.body = { error: 'Файл не найден' };
+    ctx.body = { success: false, error: 'Файл не найден' };
     logger.warn(`File not found: ${filePath}`);
     return;
   }
