@@ -23,6 +23,7 @@
     "uuid": "^13.0.0"
   },
   "dependencies": {
+    "file-type": "^21.0.0",
     "koa-body": "^6.0.1",
     "koa-static": "^5.0.0"
   }

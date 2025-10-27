@@ -66,12 +66,12 @@ export const MIME_PREFIXES = FILE_TYPE_CONFIG.map((c) => c.prefix);
 
 /**
  * Сопоставление MIME-префиксов с поддиректориями
- * 
+ *
  * @type {Object.<string, string>}
  * @description
  * Объект в формате { [prefix]: subdir }, используемый для определения
  * целевой директории при сохранении файлов
- * 
+ *
  * @example
  * // Получение пути для сохранения
  * const prefix = 'image/';
@@ -80,3 +80,31 @@ export const MIME_PREFIXES = FILE_TYPE_CONFIG.map((c) => c.prefix);
 export const PREFIX_TO_SUBDIR = Object.fromEntries(
   FILE_TYPE_CONFIG.map((c) => [c.prefix, c.subdir])
 );
+
+/**
+ * Определяет поддиректорию для хранения файла по его реальному MIME-типу
+ *
+ * @param {string} mimeType - Реальный MIME-тип файла (например, 'image/jpeg')
+ * @returns {string|null}
+ * - Поддиректория из конфигурации, если MIME-тип соответствует одному из
+ * допустимых префиксов
+ * - null, если MIME-тип не соответствует ни одному из допустимых префиксов
+ *
+ * @description
+ * 1. Проверяет, передан ли MIME-тип
+ * 2. Поиск префикса MIME-типа в списке допустимых префиксов
+ * 3. Возвращает соответствующую поддиректорию из конфигурации
+ *
+ * @example
+ * getSubdirByRealMimetype('image/jpeg'); // 'images'
+ * getSubdirByRealMimetype('video/mp4');  // 'videos'
+ * getSubdirByRealMimetype('application/pdf'); // null
+ *
+ * @see {@link MIME_PREFIXES} - Список допустимых MIME-префиксов
+ * @see {@link PREFIX_TO_SUBDIR} - Сопоставление префиксов с поддиректориями
+ */
+export const getSubdirByRealMimetype = (mimeType) => {
+  if (!mimeType) return null;
+  const matchedPrefix = MIME_PREFIXES.find((prefix) => mimeType.startsWith(prefix));
+  return matchedPrefix ? PREFIX_TO_SUBDIR[matchedPrefix] : null;
+};

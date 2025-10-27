@@ -7,6 +7,7 @@ import mount from 'koa-mount';
 import serve from 'koa-static';
 import {
   corsMiddleware,
+  fileValidationMiddleware,
   koaBodyMiddleware,
   loggerMiddleware
 } from './middleware/index.js';
@@ -19,6 +20,7 @@ const app = new Koa();
 app.use(loggerMiddleware);
 app.use(corsMiddleware);
 app.use(koaBodyMiddleware);
+app.use(fileValidationMiddleware);
 
 // Static files
 app.use(mount('/uploads', serve(UPLOADS_DIR)));

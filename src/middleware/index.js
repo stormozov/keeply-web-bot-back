@@ -1,5 +1,6 @@
 import { corsMiddleware } from './cors.js';
 import { loggerMiddleware } from './logger.js';
-import { koaBodyMiddleware } from './upload.js';
+import { fileValidationMiddleware, koaBodyMiddleware } from './upload.js';
 
-export { corsMiddleware, loggerMiddleware, koaBodyMiddleware };
+export { corsMiddleware, fileValidationMiddleware, koaBodyMiddleware, loggerMiddleware };
+

@@ -5,7 +5,7 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { MIME_PREFIXES, PREFIX_TO_SUBDIR } from '../configs/fileTypes.js';
+import { getSubdirByRealMimetype } from '../configs/fileTypes.js';
 import { UPLOADS_DIR } from '../utils/paths.js';
 
 export const organizeUploadedFiles = (rawFiles) => {
@@ -27,71 +27,44 @@ export const organizeUploadedFiles = (rawFiles) => {
 };
 
 /**
- * Группирует файлы по их MIME-типам в соответствующие поддиректории
- * 
- * @param {Array<Object>} files - Массив объектов файлов с полями mimetype
+ * Группирует файлы по их реальным MIME-типам в соответствующие поддиректории
+ *
+ * @param {Array<Object>} files - Массив объектов файлов с полями mimetype и realMimetype
  * @returns {Object.<string, Array<Object>>} - Объект, где:
  *   - Ключи - названия поддиректорий (из конфигурации)
  *   - Значения - массивы файлов, соответствующих этому типу
- * 
+ *
  * @description
- * 1. Для каждого файла определяет целевую поддиректорию через getSubdirByMimetype
+ * 1. Для каждого файла определяет целевую поддиректорию через getSubdirByRealMimetype
+ *    используя реальный MIME-тип из валидации (realMimetype)
  * 2. Создает группы файлов по типам
  * 3. Игнорирует файлы с неопознанными MIME-типами
- * 
+ *
  * @example
  * // Входные данные:
  * const files = [
- *   { mimetype: 'image/jpeg' },
- *   { mimetype: 'video/mp4' },
- *   { mimetype: 'application/pdf' }
+ *   { mimetype: 'image/jpeg', realMimetype: 'image/jpeg' },
+ *   { mimetype: 'video/mp4', realMimetype: 'video/mp4' },
+ *   { mimetype: 'application/pdf', realMimetype: null }
  * ];
- * 
+ *
  * // Результат:
  * {
- *   images: [{ mimetype: 'image/jpeg' }],
- *   videos: [{ mimetype: 'video/mp4' }]
+ *   images: [{ mimetype: 'image/jpeg', realMimetype: 'image/jpeg' }],
+ *   videos: [{ mimetype: 'video/mp4', realMimetype: 'video/mp4' }]
  * }
- * 
- * @see {@link getSubdirByMimetype} - Определение поддиректории по MIME-типу
+ *
+ * @see {@link getSubdirByRealMimetype} - Определение поддиректории по реальному MIME-типу
  * @see {@link FILE_TYPE_CONFIG} - Конфигурация типов файлов
  */
 const groupFilesByType = (files) => {
   return files.reduce((groups, file) => {
-    const subdir = getSubdirByMimetype(file.mimetype);
+    const subdir = getSubdirByRealMimetype(file.realMimetype || file.mimetype);
     if (!subdir) return groups;
 
     (groups[subdir] ??= []).push(file);
     return groups;
   }, {});
-};
-
-/**
- * Определяет поддиректорию для хранения файла по его MIME-типу
- * 
- * @param {string} [mimetype] - MIME-тип файла (например, 'image/jpeg')
- * @returns {string|null}
- * - Поддиректория из конфигурации, если MIME-тип соответствует одному из 
- * допустимых префиксов
- * - null, если MIME-тип не соответствует ни одному из допустимых префиксов
- * 
- * @description
- * 1. Проверяет, передан ли MIME-тип
- * 2. Поиск префикса MIME-типа в списке допустимых префиксов
- * 3. Возвращает соответствующую поддиректорию из конфигурации
- * 
- * @example
- * getSubdirByMimetype('image/jpeg'); // 'images'
- * getSubdirByMimetype('video/mp4');  // 'videos'
- * getSubdirByMimetype('application/pdf'); // null
- * 
- * @see {@link MIME_PREFIXES} - Список допустимых MIME-префиксов
- * @see {@link PREFIX_TO_SUBDIR} - Сопоставление префиксов с поддиректориями
- */
-const getSubdirByMimetype = (mimetype) => {
-  if (!mimetype) return null;
-  const matchedPrefix = MIME_PREFIXES.find((prefix) => mimetype.startsWith(prefix));
-  return matchedPrefix ? PREFIX_TO_SUBDIR[matchedPrefix] : null;
 };
 
 /**
@@ -129,7 +102,7 @@ export const moveSingleFile = (file, messageDir, subdirName) => {
   return {
     filename: relativePath,
     originalname: file.originalFilename || file.name,
-    mimetype: file.mimetype,
+    mimetype: file.realMimetype || file.mimetype,
     size: file.size,
     url: `/uploads/${relativePath}`,
   };
@@ -152,3 +125,35 @@ export const processFileGroup = (files, messageDir, subdirName) => {
   if (!files || files.length === 0) return [];
   return files.map((file) => moveSingleFile(file, messageDir, subdirName));
 };
+
+/** Извлекает все файлы из объекта files, нормализуя в плоский массив. */
+export const extractFiles = (filesObj) => {
+  if (!filesObj) return [];
+  return Object
+    .values(filesObj)
+    .flatMap((file) => Array.isArray(file) ? file : [file]);
+}
+
+/** Возвращает имя файла для логов или ответа. */
+export const getFileName = (file) => {
+  return file.originalFilename || file.name || 'unknown';
+}
+
+/** Удаляет временный файл и логирует возможную ошибку. */
+export const cleanupInvalidFile = async (filepath) => {
+  try {
+    fs.unlinkSync(filepath);
+  } catch (err) {
+    logger.warn({ err }, `Failed to remove invalid file: ${filepath}`);
+  }
+}
+
+/** Формирует ответ об ошибке валидации и логирует его. */
+export const respondWithValidationError = (ctx, file, error) => {
+  const filename = getFileName(file);
+  ctx.status = 400;
+  ctx.body = {
+    error: `Файл "${filename}" не прошел валидацию: ${error}`,
+  };
+  logger.warn(`File validation failed for ${filename}: ${error}`);
+}
