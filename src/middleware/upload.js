@@ -5,9 +5,9 @@
 import koaBody from 'koa-body';
 import { KOA_BODY_CONFIG } from '../configs/koa-body.js';
 import {
+  cleanupInvalidFile,
   extractFiles,
   getFileName,
-  cleanupInvalidFile,
   respondWithValidationError,
 } from '../services/fileService.js';
 import { validateFile } from '../services/validateService.js';
@@ -50,6 +50,7 @@ export const koaBodyMiddleware = koaBodyFn({
   formidable: {
     uploadDir: UPLOADS_DIR,
     keepExtensions: KOA_BODY_CONFIG.formidable.keepExtensions,
+    maxFileSize: KOA_BODY_CONFIG.formidable.maxFileSize,
   },
   onError: (error, ctx) => {
     logger.error({ err: error }, 'Koa body middleware error');

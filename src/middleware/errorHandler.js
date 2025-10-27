@@ -16,10 +16,18 @@ export const errorHandlerMiddleware = async (ctx, next) => {
   } catch (err) {
     logger.error({ err }, 'Unhandled error in request');
 
-    ctx.status = err.status || 500;
-    ctx.body = {
-      success: false,
-      error: err.message || 'Внутренняя ошибка сервера',
-    };
+    if (err.message && err.message.includes('exceeded')) {
+      ctx.status = 413;
+      ctx.body = {
+        success: false,
+        error: 'Размер файла превышает допустимый лимит (10 МБ)',
+      };
+    } else {
+      ctx.status = err.status || 500;
+      ctx.body = {
+        success: false,
+        error: err.message || 'Внутренняя ошибка сервера',
+      };
+    }
   }
 };

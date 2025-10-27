@@ -6,7 +6,6 @@ import Router from '@koa/router';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { MAX_FILE_SIZE } from '../../configs/constants.js';
 import { MIME_TO_EXT } from '../../configs/fileTypes.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
 import { addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
@@ -91,55 +90,45 @@ router.get(API_PATH, async (ctx) => {
  * @see {@link addMessage} addMessage - Функция добавления сообщения в хранилище
  */
 router.post(API_PATH, async (ctx) => {
-  const { message } = ctx.request.body;
+  try {
+    const { message } = ctx.request.body;
 
-  // Собираем все загруженные файлы из всех полей формы
-  const uploadedFiles = [];
-  if (ctx.request.files) {
-    for (const key in ctx.request.files) {
-      const file = ctx.request.files[key];
-      if (Array.isArray(file)) {
-        uploadedFiles.push(...file);
-      } else {
-        uploadedFiles.push(file);
+    // Собираем все загруженные файлы из всех полей формы
+    const uploadedFiles = [];
+    if (ctx.request.files) {
+      for (const key in ctx.request.files) {
+        const file = ctx.request.files[key];
+        if (Array.isArray(file)) {
+          uploadedFiles.push(...file);
+        } else {
+          uploadedFiles.push(file);
+        }
       }
     }
-  }
 
-  // Проверка обязательных параметров
-  if (!message && uploadedFiles.length === 0) {
-    ctx.status = 400;
-    ctx.body = { success: false, error: 'Отсутствуют текст или файлы' };
-    return;
-  }
-
-  // Проверка размера каждого файла
-  for (const file of uploadedFiles) {
-    if (file.size > MAX_FILE_SIZE) {
-      ctx.status = 413; // Payload Too Large
-      ctx.body = {
-        success: false,
-        error: `Файл "${file.originalFilename || file.name}" превышает допустимый размер (максимум 10 МБ)`,
-      };
-
-      logger.warn(`File upload rejected: ${file.originalFilename || file.name} too large (${file.size} bytes)`);
+    // Проверка обязательных параметров
+    if (!message && uploadedFiles.length === 0) {
+      ctx.status = 400;
+      ctx.body = { success: false, error: 'Отсутствуют текст или файлы' };
       return;
     }
+
+    logger.info(`Received message: ${message || 'No text, files only'}`);
+
+    const { files, messageId } = organizeUploadedFiles(uploadedFiles);
+    const newMessage = {
+      id: messageId || uuidv4(),
+      message: message || '',
+      files,
+      timestamp: new Date().toISOString(),
+    };
+
+    addMessage(newMessage);
+
+    ctx.body = { success: true, data: [newMessage] };
+  } catch (error) {
+    logger.error('Error processing message upload:', error);
   }
-
-  logger.info(`Received message: ${message || 'No text, files only'}`);
-
-  const { files, messageId } = organizeUploadedFiles(uploadedFiles);
-  const newMessage = {
-    id: messageId || uuidv4(),
-    message: message || '',
-    files,
-    timestamp: new Date().toISOString(),
-  };
-
-  addMessage(newMessage);
-
-  ctx.body = { success: true, data: [newMessage] };
 });
 
 /**
