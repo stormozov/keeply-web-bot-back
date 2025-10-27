@@ -5,7 +5,10 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { getSubdirByRealMimetype } from '../configs/fileTypes.js';
+import {
+  getExtensionFromMime,
+  getSubdirByRealMimetype
+} from '../configs/fileTypes.js';
 import { UPLOADS_DIR } from '../utils/paths.js';
 
 export const organizeUploadedFiles = (rawFiles) => {
@@ -83,7 +86,8 @@ const groupFilesByType = (files) => {
  * @returns {Object} Объект, содержащий метаданные перемещенного файла.
  */
 export const moveSingleFile = (file, messageDir, subdirName) => {
-  const ext = path.extname(file.originalFilename || file.name);
+  const realMimetype = file.realMimetype || file.mimetype;
+  const ext = getExtensionFromMime(realMimetype);
   const newFilename = uuidv4() + ext;
   const subdirPath = path.join(messageDir, subdirName);
   const newPath = path.join(subdirPath, newFilename);

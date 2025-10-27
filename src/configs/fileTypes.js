@@ -82,6 +82,51 @@ export const PREFIX_TO_SUBDIR = Object.fromEntries(
 );
 
 /**
+ * Сопоставление MIME-типов с расширениями файлов
+ *
+ * @type {Object.<string, string>}
+ * @description
+ * Объект для определения безопасного расширения файла на основе MIME-типа.
+ * Используется для генерации имен файлов, соответствующих их содержимому.
+ *
+ * @example
+ * MIME_TO_EXT['image/jpeg']; // '.jpg'
+ * MIME_TO_EXT['video/mp4'];  // '.mp4'
+ */
+export const MIME_TO_EXT = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'video/mp4': '.mp4',
+  'audio/mpeg': '.mp3',
+  'audio/wav': '.wav',
+};
+
+/**
+ * Определяет расширение файла на основе MIME-типа
+ *
+ * @param {string} mimeType - MIME-тип файла (например, 'image/jpeg')
+ * @returns {string}
+ * - Расширение из сопоставления, если MIME-тип известен
+ * - '.bin' как запасной вариант для неизвестных типов
+ *
+ * @description
+ * 1. Проверяет, передан ли MIME-тип
+ * 2. Возвращает соответствующее расширение из MIME_TO_EXT
+ * 3. Если тип неизвестен, возвращает '.bin'
+ *
+ * @example
+ * getExtensionFromMime('image/jpeg'); // '.jpg'
+ * getExtensionFromMime('unknown/type'); // '.bin'
+ *
+ * @see {@link MIME_TO_EXT} - Сопоставление MIME-типов с расширениями
+ */
+export const getExtensionFromMime = (mimeType) => {
+  return mimeType && MIME_TO_EXT[mimeType] ? MIME_TO_EXT[mimeType] : '.bin';
+};
+
+/**
  * Определяет поддиректорию для хранения файла по его реальному MIME-типу
  *
  * @param {string} mimeType - Реальный MIME-тип файла (например, 'image/jpeg')
