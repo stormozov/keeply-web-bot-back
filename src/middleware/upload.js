@@ -51,11 +51,19 @@ export const koaBodyMiddleware = koaBodyFn({
     uploadDir: UPLOADS_DIR,
     keepExtensions: KOA_BODY_CONFIG.formidable.keepExtensions,
     maxFileSize: KOA_BODY_CONFIG.formidable.maxFileSize,
+    maxTotalFileSize: KOA_BODY_CONFIG.formidable.maxTotalFileSize,
   },
   onError: (error, ctx) => {
-    logger.error({ err: error }, 'Koa body middleware error');
+    logger.error({
+      err: error,
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      ctxUrl: ctx.url,
+      ctxMethod: ctx.method,
+    }, 'Koa body middleware error');
     throw error;
-  },
+  }
 });
 
 /**

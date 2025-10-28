@@ -2,7 +2,7 @@
 // Конфигурация koa-body
 // =============================================================================
 
-import { MAX_FILE_SIZE } from './constants.js';
+import { MAX_FILE_SIZE, MAX_TOTAL_FILE_SIZE } from './constants.js';
 
 /**
  * Конфигурация koa-body
@@ -27,5 +27,9 @@ export const KOA_BODY_CONFIG = {
      * Максимальный размер файла (в байтах)
      */
     maxFileSize: MAX_FILE_SIZE,
+    /**
+     * Максимальный размер всех файлов (в байтах)
+     */
+    maxTotalFileSize: MAX_TOTAL_FILE_SIZE, 
   },
 };

@@ -7,3 +7,8 @@
  * @type {number}
  */
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+/**
+ * Максимальный размер всех загружаемых файлов одним сообщением (в байтах)
+ */
+export const MAX_TOTAL_FILE_SIZE = 100 * 1024 * 1024; // 100MB
