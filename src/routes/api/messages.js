@@ -3,6 +3,7 @@
 // =============================================================================
 
 import Router from '@koa/router';
+import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
@@ -277,6 +278,123 @@ router.get('/uploads/:messageId/:subdir/:filename', async (ctx) => {
   ctx.body = fs.createReadStream(filePath);
 
   logger.info(`Served file: ${filePath}`);
+});
+
+/**
+ * Асинхронный обработчик запроса на скачивание вложений сообщения в виде ZIP-архива
+ *
+ * @param {Object} ctx - Контекст запроса Koa.js
+ * @param {Object} ctx.params - Параметры маршрута
+ * @param {string} ctx.params.messageId - ID сообщения
+ *
+ * @description
+ * 1. Валидирует messageId (UUID формат, запрет path traversal)
+ * 2. Читает сообщения из файла
+ * 3. Находит сообщение по ID
+ * 4. Проверяет наличие файлов
+ * 5. Для каждого файла проверяет существование
+ * 6. Создает ZIP-архив с файлами в структуре subdir/filename
+ * 7. Устанавливает заголовки для скачивания
+ * 8. Возвращает ZIP поток
+ *
+ * @example
+ * GET /api/messages/123e4567-e89b-12d3-a456-426614174000/attachments/download
+ *
+ * @throws {400} Если messageId недействителен
+ * @throws {404} Если сообщение не найдено или нет файлов
+ * @throws {500} Если ошибка при создании архива
+ *
+ * @see {@link readMessages} - Чтение сообщений
+ * @see {@link UPLOADS_DIR} - Директория файлов
+ */
+router.get(`${API_PATH}/:messageId/attachments/download`, async (ctx) => {
+  const { messageId } = ctx.params;
+
+  if (
+    !/^[a-f0-9\-]{36}$/.test(messageId)
+    || messageId.includes('/')
+    || messageId.includes('\\')
+    || messageId.includes('..')
+  ) {
+    ctx.status = 400;
+    ctx.body = { success: false, error: 'Недействительный ID сообщения' };
+    logger.warn(`Invalid messageId for attachments download: ${messageId}`);
+    return;
+  }
+
+  const messages = readMessages();
+  const message = messages.find(msg => msg.id === messageId);
+
+  if (!message) {
+    ctx.status = 404;
+    ctx.body = { success: false, error: 'Сообщение не найдено' };
+    logger.warn(`Message not found: ${messageId}`);
+    return;
+  }
+
+  if (!message.files?.length) {
+    ctx.status = 404;
+    ctx.body = { success: false, error: 'У сообщения нет вложений' };
+    logger.warn(`No attachments for message: ${messageId}`);
+    return;
+  }
+
+  // Проверка существования файлов
+  for (const file of message.files) {
+    const filePath = path.join(UPLOADS_DIR, file.filename);
+    try {
+      await fs.promises.access(filePath, fs.constants.F_OK);
+    } catch {
+      ctx.status = 404;
+      ctx.body = {
+        success: false,
+        error: 'Один или несколько файлов не найдены'
+      };
+      logger.warn(`Attachment file not found: ${filePath}`);
+      return;
+    }
+  }
+
+  // ✅ Теперь безопасно создаём архив
+  const archive = archiver('zip', { zlib: { level: 9 } });
+
+  // Устанавливаем заголовки
+  ctx.set('Content-Type', 'application/zip');
+  ctx.set(
+    'Content-Disposition',
+    `attachment; filename="attachments-${messageId}.zip"`
+  );
+  ctx.status = 200;
+
+  // Отключаем автоматическую обработку body Koa, чтобы избежать сериализации
+  ctx.respond = false;
+
+  // Обработка ошибок архива
+  archive.on('error', (err) => {
+    logger.error(`Archive error for ${messageId}:`, err);
+    if (!ctx.res.headersSent) {
+      ctx.res.statusCode = 500;
+      ctx.res.end('Internal Server Error');
+    }
+  });
+
+  // Pipe архив напрямую в response
+  archive.pipe(ctx.res);
+
+  // Добавляем файлы
+  for (const file of message.files) {
+    const filePath = path.join(UPLOADS_DIR, file.filename);
+    const parts = file.filename.split('/');
+    const archivePath = parts.length >= 2
+      ? parts.slice(1).join('/')
+      : path.basename(file.filename);
+    archive.file(filePath, { name: archivePath });
+  }
+
+  // Финализируем архив
+  archive.finalize();
+
+  logger.info(`ZIP archive streaming started for message ${messageId} with ${message.files.length} files`);
 });
 
 export default router;
