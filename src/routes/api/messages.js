@@ -281,6 +281,68 @@ router.get('/uploads/:messageId/:subdir/:filename', async (ctx) => {
 });
 
 /**
+ * Асинхронный обработчик запроса на получение позиции сообщения в общем списке
+ *
+ * @param {Object} ctx - Контекст запроса Koa.js
+ * @param {Object} ctx.params - Параметры маршрута
+ * @param {string} ctx.params.id - ID сообщения
+ *
+ * @description
+ * 1. Валидирует ID сообщения (UUID формат)
+ * 2. Читает все сообщения из хранилища
+ * 3. Сортирует сообщения по timestamp (от старых к новым)
+ * 4. Находит индекс сообщения в отсортированном массиве
+ * 5. Возвращает индекс (от 0 до total-1, где 0 - самое старое сообщение)
+ *
+ * @example
+ * GET /api/messages/123e4567-e89b-12d3-a456-426614174000/position
+ * // Возвращает: { success: true, position: 42 }
+ *
+ * @throws {400} Если ID сообщения недействителен
+ * @throws {404} Если сообщение не найдено
+ *
+ * @see {@link readMessages} - Чтение сообщений из хранилища
+ */
+router.get(`${API_PATH}/:id/position`, async (ctx) => {
+  const { id } = ctx.params;
+
+  // Валидация ID сообщения
+  if (!/^[a-f0-9\-]{36}$/.test(id)) {
+    ctx.status = 400;
+    ctx.body = { success: false, error: 'Недействительный ID сообщения' };
+    logger.warn(`Invalid message ID for position request: ${id}`);
+    return;
+  }
+
+  try {
+    const messages = readMessages();
+
+    // Сортируем сообщения по timestamp (от старых к новым)
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    // Находим индекс сообщения
+    const position = messages.findIndex(msg => msg.id === id);
+
+    if (position === -1) {
+      ctx.status = 404;
+      ctx.body = { success: false, error: 'Сообщение не найдено' };
+      logger.warn(`Message not found for position request: ${id}`);
+      return;
+    }
+
+    ctx.body = { success: true, position };
+    logger.info(`Position request for message ${id}: position ${position}`);
+  } catch (error) {
+    logger.error('Error getting message position:', error);
+    ctx.status = 500;
+    ctx.body = {
+      success: false,
+      error: 'Ошибка при получении позиции сообщения'
+    };
+  }
+});
+
+/**
  * Асинхронный обработчик запроса на скачивание вложений сообщения в виде ZIP-архива
  *
  * @param {Object} ctx - Контекст запроса Koa.js
