@@ -64,16 +64,18 @@ export const writeMessages = (messages) => {
  *
  * @param {Object} newMessage - Объект сообщения для добавления
  * @param {string} newMessage.id - Уникальный идентификатор сообщения
- * @param {string} newMessage.text - Текстовое содержимое сообщения
+ * @param {string} newMessage.message - Текстовое содержимое сообщения
  * @param {Date} newMessage.timestamp - Временная метка создания
+ * @param {string} [newMessage.sender='user'] - Отправитель сообщения
  *
  * @returns {Array<Object>} Обновленный список сообщений
  *
  * @example
  * const newMsg = {
  *   id: '123',
- *   text: 'Привет!',
- *   timestamp: new Date().toISOString()
+ *   message: 'Привет!',
+ *   timestamp: new Date().toISOString(),
+ *   sender: 'user'
  * };
  * const allMessages = addMessage(newMsg);
  *
@@ -81,9 +83,12 @@ export const writeMessages = (messages) => {
  * @see {@link writeMessages} - Для непосредственного сохранения
  */
 export const addMessage = (newMessage) => {
+  if (!newMessage.sender) newMessage.sender = 'user';
+
   const messages = readMessages();
   messages.push(newMessage);
   writeMessages(messages);
+
   return messages;
 };
 

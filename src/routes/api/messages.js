@@ -92,7 +92,7 @@ router.get(API_PATH, async (ctx) => {
  */
 router.post(API_PATH, async (ctx) => {
   try {
-    const { message } = ctx.request.body;
+    const { message, sender = 'user' } = ctx.request.body;
 
     // Собираем все загруженные файлы из всех полей формы
     const uploadedFiles = [];
@@ -122,6 +122,7 @@ router.post(API_PATH, async (ctx) => {
       message: message || '',
       files,
       timestamp: new Date().toISOString(),
+      sender: 'user',
     };
 
     addMessage(newMessage);
