@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger.js';
 import { MESSAGES_FILE, UPLOADS_DIR } from '../utils/paths.js';
 
@@ -146,6 +147,35 @@ export const deleteMessage = (id) => {
   messages.splice(index, 1);
   writeMessages(messages);
   return true;
+};
+
+/**
+ * Добавление нового сообщения от бота в хранилище
+ *
+ * @param {string} message - Текстовое содержимое сообщения от бота
+ * @returns {Object} Созданное сообщение от бота
+ *
+ * @description
+ * 1. Создает объект сообщения с sender: 'bot'
+ * 2. Добавляет сообщение в хранилище
+ * 3. Возвращает созданное сообщение
+ *
+ * @example
+ * const botMsg = addBotMessage('Привет! Я бот-помощник.');
+ * console.log(botMsg); // { id: 'uuid', message: 'Привет! Я бот-помощник.', sender: 'bot', ... }
+ *
+ * @see {@link addMessage} - Для добавления пользовательских сообщений
+ */
+export const addBotMessage = (message) => {
+  const newMessage = {
+    id: uuidv4(),
+    message,
+    timestamp: new Date().toISOString(),
+    sender: 'bot',
+  };
+
+  addMessage(newMessage);
+  return newMessage;
 };
 
 /**

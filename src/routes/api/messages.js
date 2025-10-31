@@ -9,9 +9,13 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { MIME_TO_EXT } from '../../configs/fileTypes.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
-import { addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
+import { addBotMessage, addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
+import { readJsonFile } from '../../utils/fileUtils.js';
 import { logger } from '../../utils/logger.js';
 import { UPLOADS_DIR } from '../../utils/paths.js';
+
+// Читаем справочное сообщение из файла
+const helpMessageData = readJsonFile(path.join(process.cwd(), 'data', 'helpMessage.json'));
 
 const router = new Router();
 const API_PATH = '/api/messages';
@@ -458,6 +462,38 @@ router.get(`${API_PATH}/:messageId/attachments/download`, async (ctx) => {
   archive.finalize();
 
   logger.info(`ZIP archive streaming started for message ${messageId} with ${message.files.length} files`);
+});
+
+/**
+ * Асинхронный обработчик запроса на получение справочной информации от бота
+ *
+ * @param {Object} ctx - Контекст запроса Koa.js
+ *
+ * @description
+ * 1. Создает сообщение от бота с информацией о возможностях
+ * 2. Добавляет сообщение в хранилище
+ * 3. Возвращает созданное сообщение в ответе
+ *
+ * @example
+ * GET /api/messages/help
+ * // Возвращает: { success: true, data: [{ id: 'uuid', message: 'Информация о боте...', sender: 'bot', ... }] }
+ *
+ * @see {@link addBotMessage} - Функция создания сообщения от бота
+ */
+router.get(`${API_PATH}/help`, async (ctx) => {
+  try {
+    const botMessage = addBotMessage(helpMessageData.message);
+
+    ctx.body = { success: true, data: [botMessage] };
+    logger.info('Help message sent successfully');
+  } catch (error) {
+    logger.error('Error sending help message:', error);
+    ctx.status = 500;
+    ctx.body = {
+      success: false,
+      error: 'Ошибка при отправке справочного сообщения'
+    };
+  }
 });
 
 export default router;

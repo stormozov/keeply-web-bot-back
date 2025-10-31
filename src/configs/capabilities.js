@@ -58,9 +58,9 @@ export const capabilities = {
   // Остальной интерфейс
   ui: {
     buttonHelp: {
-      availableState: 'false',
+      availableState: 'true',
       hasTooltip: true,
-      tooltip: BOT_FUNCTION_NOT_AVAILABLE,
+      tooltip: 'Помощь',
     },
     buttonFavorites: {
       availableState: 'false',
