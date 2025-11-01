@@ -11,8 +11,12 @@ import {
   loggerMiddleware
 } from './middleware/index.js';
 import apiRoutes from './routes/api/index.js';
+import { initDirectories } from './services/initDirsService.js';
 
 const app = new Koa();
+
+// Инициализация директорий и файлов
+initDirectories();
 
 // Глобальный обработчик ошибок
 app.use(errorHandlerMiddleware);

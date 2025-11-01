@@ -11,6 +11,15 @@ import {
 } from '../configs/fileTypes.js';
 import { UPLOADS_DIR } from '../utils/paths.js';
 
+/**
+ * Организует загруженные файлы в соответствии с их MIME-типами
+ *
+ * @param {Array<Object>} rawFiles - Массив объектов файлов с полями mimetype
+ * и realMimetype
+ *
+ * @returns {Object} - Объект, содержащий обработанный список файлов
+ * и идентификатор сообщения
+ */
 export const organizeUploadedFiles = (rawFiles) => {
   const files = Array.isArray(rawFiles) ? rawFiles : rawFiles ? [rawFiles] : [];
   if (files.length === 0) return { files: [], messageId: null };
@@ -32,14 +41,16 @@ export const organizeUploadedFiles = (rawFiles) => {
 /**
  * Группирует файлы по их реальным MIME-типам в соответствующие поддиректории
  *
- * @param {Array<Object>} files - Массив объектов файлов с полями mimetype и realMimetype
+ * @param {Array<Object>} files - Массив объектов файлов с полями mimetype
+ * и realMimetype
+ *
  * @returns {Object.<string, Array<Object>>} - Объект, где:
  *   - Ключи - названия поддиректорий (из конфигурации)
  *   - Значения - массивы файлов, соответствующих этому типу
  *
  * @description
- * 1. Для каждого файла определяет целевую поддиректорию через getSubdirByRealMimetype
- *    используя реальный MIME-тип из валидации (realMimetype)
+ * 1. Для каждого файла определяет целевую поддиректорию через
+ *    getSubdirByRealMimetype используя реальный MIME-тип из валидации
  * 2. Создает группы файлов по типам
  * 3. Игнорирует файлы с неопознанными MIME-типами
  *
@@ -57,7 +68,8 @@ export const organizeUploadedFiles = (rawFiles) => {
  *   videos: [{ mimetype: 'video/mp4', realMimetype: 'video/mp4' }]
  * }
  *
- * @see {@link getSubdirByRealMimetype} - Определение поддиректории по реальному MIME-типу
+ * @see {@link getSubdirByRealMimetype} - Определение поддиректории по реальному
+ * MIME-типу
  * @see {@link FILE_TYPE_CONFIG} - Конфигурация типов файлов
  */
 const groupFilesByType = (files) => {
@@ -115,7 +127,8 @@ export const moveSingleFile = (file, messageDir, subdirName) => {
 /**
  * Обрабатывает группу файлов одного типа (images, videos и т.д.)
  * 
- * @param {Array<Object>} files - Массив объектов, содержащий информацию о файлах.
+ * @param {Array<Object>} files - Массив объектов, содержащий информацию
+ * о файлах.
  * @param {string} messageDir - Полный путь к директории сообщений.
  * @param {string} subdirName - Имя подпапки для сохранения файлов.
  * 
