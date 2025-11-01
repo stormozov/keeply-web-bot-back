@@ -170,6 +170,7 @@ export const addBotMessage = (message) => {
   const newMessage = {
     id: uuidv4(),
     message,
+    format: 'html',
     timestamp: new Date().toISOString(),
     sender: 'bot',
   };

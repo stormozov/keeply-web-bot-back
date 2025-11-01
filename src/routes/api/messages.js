@@ -5,17 +5,14 @@
 import Router from '@koa/router';
 import archiver from 'archiver';
 import fs from 'fs';
-import path from 'path';
+import path, { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { MIME_TO_EXT } from '../../configs/fileTypes.js';
 import { organizeUploadedFiles } from '../../services/fileService.js';
 import { addBotMessage, addMessage, clearAllMessages, deleteMessage, readMessages } from '../../services/messageService.js';
-import { readJsonFile } from '../../utils/fileUtils.js';
 import { logger } from '../../utils/logger.js';
 import { UPLOADS_DIR } from '../../utils/paths.js';
-
-// Читаем справочное сообщение из файла
-const helpMessageData = readJsonFile(path.join(process.cwd(), 'data', 'helpMessage.json'));
+import { renderMarkdownFileCached } from '../../utils/renderMarkdownFile.js';
 
 const router = new Router();
 const API_PATH = '/api/messages';
@@ -125,6 +122,7 @@ router.post(API_PATH, async (ctx) => {
       id: messageId || uuidv4(),
       message: message || '',
       files,
+      format: 'text',
       timestamp: new Date().toISOString(),
       sender: 'user',
     };
@@ -482,10 +480,14 @@ router.get(`${API_PATH}/:messageId/attachments/download`, async (ctx) => {
  */
 router.get(`${API_PATH}/help`, async (ctx) => {
   try {
-    const botMessage = addBotMessage(helpMessageData.message);
+    const markdownPath = join(process.cwd(), 'data', 'helpMessage.md');
+    const htmlContent = await renderMarkdownFileCached(markdownPath);
+
+    // Предполагается, что addBotMessage ожидает объект с полем message
+    const botMessage = addBotMessage(htmlContent);
 
     ctx.body = { success: true, data: [botMessage] };
-    logger.info('Help message sent successfully');
+    logger.info('Help message (Markdown) sent successfully as HTML');
   } catch (error) {
     logger.error('Error sending help message:', error);
     ctx.status = 500;
