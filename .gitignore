@@ -15,10 +15,3 @@ node_modules
 
 #!.yarn/cache
 .pnp.*
-
-# Use message storage file
-data/messages.json
-data/uploads/*
-
-# Environment file
-environment.js
