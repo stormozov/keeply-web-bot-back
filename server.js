@@ -5,9 +5,10 @@
 // Само приложение настраивается в файле ./src/app.js
 // =============================================================================
 
-import { PORT } from './environment.js';
 import app from './src/app.js';
 import { logger } from './src/utils/logger.js';
+
+export const PORT = 7070;
 
 app.listen(PORT, () => {
   logger.info(`Server is listening on port ${PORT}`);
